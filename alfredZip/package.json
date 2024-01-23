@@ -1,0 +1,20 @@
+{
+  "name": "alfredzip",
+  "version": "1.0.0",
+  "description": "Lambda usada para zipar arquivos",
+  "main": "index.mjs",
+  "scripts": {
+    "predeploy": "rm -rf uploader.zip",
+    "deploy": "zip -r uploader.zip index.mjs index.js node_modules package.json package-lock.json "
+  },
+  "author": "Felipe neves",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.490.0",
+    "@aws-sdk/client-s3": "^3.490.0",
+    "@aws-sdk/lib-storage": "^3.490.0",
+    "archiver": "^6.0.1",
+    "aws-sdk": "^2.1536.0",
+    "jszip": "^3.10.1"
+  }
+}
