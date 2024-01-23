@@ -29,7 +29,7 @@ export const handler = async (event) => {
     };
     return response;
   } catch (error) {
-    console.log("Erro:", error);
+    console.eroor("Erro:", error);
     return {
       statusCode: 500,
       body: JSON.stringify("Erro ao executar a função Lambda."),
@@ -44,16 +44,11 @@ async function processObjects(path) {
 
   do {
     objectsResponse = await getObjectResponse(path, NextContinuationToken);
-    console.log("objectsResponse", objectsResponse);
-    // console.log(objectsResponse.Contents.length);
 
     const zipContent = await campactaArquivosInConstZip(objectsResponse, path);
-    console.log("zip content", zipContent);
     const zipFileName = await getNameArchZip(complementoNomeArquivo, path);
-    console.log(zipFileName, zipContent);
 
     await uploadToS3(zipContent, path, zipFileName);
-    console.log("finalizou o upload");
     if (objectsResponse.IsTruncated) {
       IsTruncated = true;
       NextContinuationToken = objectsResponse.NextContinuationToken;
@@ -75,7 +70,7 @@ async function getObjectResponse(path, NextContinuationToken) {
 }
 async function listObjects(path) {
   const prefix = `${path.path}`;
-  console.log("listObjects", prefix);
+
   const listObjectsParams = {
     Bucket: path.bucket,
     MaxKeys: 50,
@@ -84,7 +79,6 @@ async function listObjects(path) {
   const listObjectsCommand = new ListObjectsV2Command(listObjectsParams);
   const objectsResponse = await s3.send(listObjectsCommand);
 
-  console.log("objeto da resposta", objectsResponse);
   return objectsResponse;
 }
 async function listObjectsWithNextContinuationToken(
@@ -116,22 +110,18 @@ async function campactaArquivosInConstZip(objectsResponse, path) {
   ).catch((e) => {
     console.error("error dentro do loop do promise", e);
   });
-  console.log("antes do return", zip);
   var sinc = null;
   try {
     sinc = await zip.generateAsync({ type: "nodebuffer" });
   } catch (error) {
     console.error(error);
   }
-  console.log(sinc);
   return sinc;
 }
 async function getObjectContent(path, key) {
-  const prefix = path.path;
   const params = {
     Bucket: path.bucket,
     Key: key,
-    Prefix: prefix,
   };
 
   const response = await s3.send(new GetObjectCommand(params));
@@ -155,16 +145,10 @@ async function uploadToS3(content, path, key) {
       Expires: moment,
     };
     var uploaded = null;
-    console.log("====================================");
-    console.log("param upload", params);
-    console.log("URL do objeto:");
-    console.log("====================================");
-
     uploaded = await s3.send(new PutObjectCommand(params));
 
     const url = `https://${params.Bucket}.s3.amazonaws.com/${params.Key}`;
     directoriesArray.push(url);
-    console.log("Arquivo enviado com sucesso!", uploaded);
   } catch (error) {
     console.error(error);
   }
