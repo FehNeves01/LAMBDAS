@@ -29,7 +29,7 @@ export const handler = async (event) => {
     };
     return response;
   } catch (error) {
-    console.eroor("Erro:", error);
+    console.error("Erro:", error);
     return {
       statusCode: 500,
       body: JSON.stringify("Erro ao executar a função Lambda."),
@@ -128,9 +128,11 @@ async function getObjectContent(path, key) {
   return response.Body;
 }
 async function getNameArchZip(complementoNomeArquivo, path) {
-  return `${path.aplicacaoId}${
-    complementoNomeArquivo > 0 ? complementoNomeArquivo : ""
-  }.zip`;
+  if (complementoNomeArquivo > 0) {
+    return `${path.aplicacaoId}(${complementoNomeArquivo}).zip`;
+  } else {
+    return `${path.aplicacaoId}.zip`;
+  }
 }
 async function uploadToS3(content, path, key) {
   // https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/s3/command/PutObjectCommand/
