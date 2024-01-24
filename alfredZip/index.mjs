@@ -20,12 +20,17 @@ export const handler = async (event) => {
   }
   s3 = new S3Client({ region: request.regiao });
 
-  // await debug();
+  const resposta = {
+    status: "success",
+    message:
+      "Compactando arquivos. Assim que estiver pronto, você será notificado.",
+  };
+
   try {
-    await processObjects(request);
+    processObjects(request);
     const response = {
       statusCode: 200,
-      body: JSON.stringify(directoriesArray),
+      body: JSON.stringify(resposta),
     };
     return response;
   } catch (error) {
@@ -41,7 +46,8 @@ async function processObjects(path) {
   let IsTruncated = false;
   let NextContinuationToken = null;
   let objectsResponse = null;
-
+  let isSuccess = false;
+  const urlAlfredCallback = path.urlAlfredCallback;
   do {
     objectsResponse = await getObjectResponse(path, NextContinuationToken);
 
@@ -49,6 +55,7 @@ async function processObjects(path) {
     const zipFileName = await getNameArchZip(complementoNomeArquivo, path);
 
     await uploadToS3(zipContent, path, zipFileName);
+    isSuccess = true;
     if (objectsResponse.IsTruncated) {
       IsTruncated = true;
       NextContinuationToken = objectsResponse.NextContinuationToken;
@@ -57,6 +64,8 @@ async function processObjects(path) {
       IsTruncated = false;
     }
   } while (IsTruncated);
+
+  notifyAlfredDownload(isSuccess, urlAlfredCallback);
 }
 async function getObjectResponse(path, NextContinuationToken) {
   if (!NextContinuationToken) {
@@ -164,4 +173,44 @@ async function debug() {
   };
   const listObjectsCommand = new ListObjectsV2Command(listObjectsParams);
   const objectsResponse = await s3.send(listObjectsCommand);
+}
+async function notifyAlfredDownload(isSuccess, urlAlfredCallback) {
+  let message = null;
+
+  if (isSuccess) {
+    message = {
+      status: isSuccess,
+      message: "Arquivos compactados com sucesso.",
+      urls: directoriesArray,
+    };
+  } else {
+    message = {
+      status: isSuccess,
+      message:
+        "Erro: durante a compactação dos arquivos, ocorreu um erro. Favor verificar os logs para obter mais informações.",
+      urls: directoriesArray,
+    };
+  }
+
+  const url =
+    urlAlfredCallback + "/api/questions/receiveResponseFromLambdaFunction";
+
+  console.log(url);
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(message),
+    })
+      .then(() => {
+        console.log("Requisição enviada com sucesso.");
+      })
+      .catch((error) => {
+        console.error("Erro ao enviar requisição:", error);
+      });
+  } catch (error) {
+    console.error("Erro ao enviar requisição:", error);
+  }
 }
