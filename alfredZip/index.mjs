@@ -10,14 +10,22 @@ import JSZip from "jszip";
 
 var s3 = null;
 var directoriesArray = null;
+var userId = null;
 export const handler = async (event) => {
   directoriesArray = [];
+
   let request = null;
   if (!!event.body) {
     request = JSON.parse(event.body);
   } else {
     request = event;
   }
+
+  userId = request.userId;
+  console.log(request);
+  console.log(
+    request.urlAlfredCallback + "/api/receiveResponseFromLambdaFunction"
+  );
   s3 = new S3Client({ region: request.regiao });
 
   const resposta = {
@@ -27,7 +35,7 @@ export const handler = async (event) => {
   };
 
   try {
-    processObjects(request);
+    await processObjects(request);
     const response = {
       statusCode: 200,
       body: JSON.stringify(resposta),
@@ -64,8 +72,8 @@ async function processObjects(path) {
       IsTruncated = false;
     }
   } while (IsTruncated);
-
-  notifyAlfredDownload(isSuccess, urlAlfredCallback);
+  console.log("antes do notifyAlfredDownload");
+  await notifyAlfredDownload(isSuccess, urlAlfredCallback);
 }
 async function getObjectResponse(path, NextContinuationToken) {
   if (!NextContinuationToken) {
@@ -175,6 +183,7 @@ async function debug() {
   const objectsResponse = await s3.send(listObjectsCommand);
 }
 async function notifyAlfredDownload(isSuccess, urlAlfredCallback) {
+  console.log("dentro do notifyAlfredDownload");
   let message = null;
 
   if (isSuccess) {
@@ -182,6 +191,7 @@ async function notifyAlfredDownload(isSuccess, urlAlfredCallback) {
       status: isSuccess,
       message: "Arquivos compactados com sucesso.",
       urls: directoriesArray,
+      userId: userId,
     };
   } else {
     message = {
@@ -189,28 +199,25 @@ async function notifyAlfredDownload(isSuccess, urlAlfredCallback) {
       message:
         "Erro: durante a compactação dos arquivos, ocorreu um erro. Favor verificar os logs para obter mais informações.",
       urls: directoriesArray,
+      userId: userId,
     };
   }
 
-  const url =
-    urlAlfredCallback + "/api/questions/receiveResponseFromLambdaFunction";
+  const url = urlAlfredCallback + "/api/receiveResponseFromLambdaFunction";
 
-  console.log(url);
-  try {
-    await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(message),
+  console.log("antes do fetch", url);
+
+  await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(message),
+  })
+    .then((response) => {
+      console.log("Requisição enviada com sucesso.", response);
     })
-      .then(() => {
-        console.log("Requisição enviada com sucesso.");
-      })
-      .catch((error) => {
-        console.error("Erro ao enviar requisição:", error);
-      });
-  } catch (error) {
-    console.error("Erro ao enviar requisição:", error);
-  }
+    .catch((error) => {
+      console.error("Erro ao enviar requisição:", error);
+    });
 }
